@@ -86,7 +86,7 @@ public class SamMok : MonoBehaviour
 
         if(state == State.End) //게임이 끝난 후 처리(결과 표시 등) UpdateEnd 함수 호출
         {
-            UpdateEnd();
+           // UpdateEnd();
         }
     }
 
@@ -115,7 +115,7 @@ public class SamMok : MonoBehaviour
 
         if (stoneTurn == stoneI) //나의 턴인지 확인
         {
-            bSet = MyTurn(); // 내 턴이라면 MyTurn 함수 호출
+           // bSet = MyTurn(); // 내 턴이라면 MyTurn 함수 호출
         }
     }
 
