@@ -75,4 +75,48 @@ public class SamMok : MonoBehaviour
         //화면에 직접 텍스처를 그려주는 메서드
     }
 
+    private void Update()
+    {
+        if(!tcp.IsConnect()) return; //연결되어 있지 않다면 함수 종료
+
+        if(state == State.Start) // 게임 시작전 초기화 UpdateStart함수를 호출
+        {
+            UpdateStart();
+        }
+
+        if(state == State.End) //게임이 끝난 후 처리(결과 표시 등) UpdateEnd 함수 호출
+        {
+            UpdateEnd();
+        }
     }
+
+    void UpdateStart()
+    {
+        state = State.Game; //상태 변경 
+        stoneTurn = Stone.White; //흰 돌이 첫턴
+
+        if(tcp.IsServer()) //내가 서버역할이라면
+        { 
+            stoneI = Stone.White; //나는 흰색돌
+            stoneYou = Stone.Black; //상대방은 검은 돌
+        }
+        else //내가 클라이언트라면
+        {
+            {
+                stoneI = Stone.Black; //나는 검정
+                stoneYou = Stone.White; //상대방은 흰색
+            }
+        }
+    }
+
+    void UpdateGame()
+    {
+        bool bSet = false; // 돌을 성공적으로 놓았는지
+
+        if (stoneTurn == stoneI) //나의 턴인지 확인
+        {
+            bSet = MyTurn(); // 내 턴이라면 MyTurn 함수 호출
+        }
+    }
+
+}
