@@ -1,7 +1,5 @@
 using UnityEngine;
-using UnityEngine.Rendering.LookDev;
 using UnityEngine.UI;
-using TMPro;
 
 public class OmockGame : MonoBehaviour
 {
@@ -14,12 +12,6 @@ public class OmockGame : MonoBehaviour
     public Texture textBord;
     public Texture textWhite;
     public Texture textBlack;
-    public GameObject winPanel;
-    public TextMeshProUGUI winnerText;
-    public RawImage imgStone;
-    public Texture textWhiteUI;
-    public Texture textBlackUI;
-    public Button quitButton;
 
     // board size
     const int BOARD_SIZE = 15; // 오목 보드판의 크기를 15x15로 정의
@@ -46,18 +38,13 @@ public class OmockGame : MonoBehaviour
         for (int y = 0; y < BOARD_SIZE; ++y) // 모든 칸을 돌 없음으로 초기화
             for (int x = 0; x < BOARD_SIZE; ++x)
                 board[x, y] = Stone.None;
-
-        if(winPanel != null)
-        {
-            winPanel.SetActive(false);
-        }
     }
 
     void Update()
     {
         if (!tcp.IsConnect()) return; //연결되어 있지 않다면 상태 종료
 
-        if (state == State.Start) 
+        if (state == State.Start)
             UpdateStart();
         if (state == State.Game)
             UpdateGame();
@@ -81,10 +68,9 @@ public class OmockGame : MonoBehaviour
             stoneYou = Stone.White;
         }
     }
-
     void UpdateGame()
     {
-        bool bSet = false; 
+        bool bSet = false;
 
         if (stoneTurn == stoneI) //현재 턴의 돌 색이 나의 돌 색과 같다면 내가 움직임
             bSet = MyTurn();
@@ -109,10 +95,10 @@ public class OmockGame : MonoBehaviour
         while (idx < iSize) //여러개의 메세지가 포함될 수 있으므로 반복해서 처리
         {
             byte msgType = data[idx]; //메세지 첫 번째 바이트는 메시지 유형(0:놓기, 1제거)
-            
+
             if (idx + 2 >= iSize)
             {
-                Debug.LogWarning("Incomplete message - waiting for next packet");
+                Debug.LogWarning("Incomplete message received");
                 break;
             }
 
@@ -128,7 +114,7 @@ public class OmockGame : MonoBehaviour
                 {
                     Debug.LogWarning("Opponent placed on invalid or occupied cell: " + x + "," + y);
                 }
-   
+
                 if (CheckFive((int)x, (int)y, stoneYou)) //상대방의 수가 5목을 만들었다면 상대방 승리 처리 후 게임 종료
                 {
                     state = State.End;
@@ -138,7 +124,7 @@ public class OmockGame : MonoBehaviour
             }
             else if (msgType == 1) // 상대방이 돌을 포획하여 제거했다는 메시지
             {
-                
+
                 if (InBoard((int)x, (int)y))
                 {
                     board[x, y] = Stone.None; //해당 좌표의 돌을 none으로 바꿔 제거
@@ -169,7 +155,6 @@ public class OmockGame : MonoBehaviour
         int y = index / BOARD_SIZE; //행의 좌표를 y좌표로 변환
         return SetStone(x, y, stone); // 핵심 함수에게 제어권을 넘겨주고 결과를 그대로 돌려주는 역할
     }
-
     bool MyTurn()
     {
         if (!Input.GetMouseButtonDown(0)) //마우스 왼쪽 클릭을 하지 않았다면 false를 반환
@@ -184,19 +169,12 @@ public class OmockGame : MonoBehaviour
         if (!ok) return false;
 
 
-        //먼저 포획 검사 + 제거 +remove 메시지 전송
-        var removed = CaptureStones(x,y, stoneI);
-
-        foreach (var p in removed)
-            SendRemove(p.x, p.y);
-
-      
         if (CheckFive(x, y, stoneI))//돌을 놓은 후 5개 이상 연결을 만들었는지 확인
         {
             state = State.End; // 오목을 만들었다면 승리 처리 하고 게임 동료
             stoneWinner = stoneI;
 
-    
+
             SendPlace(x, y); // 상대방에게 돌 놓기 정보를 전송
 
             Debug.Log("승리: " + stoneWinner);
@@ -204,7 +182,16 @@ public class OmockGame : MonoBehaviour
         }
 
 
+        var removed = CaptureStones(x, y, stoneI); // 포획 규칙을 검사하여 제거된 돌의 목록을 얻는다.
+
+
         SendPlace(x, y); //내가 돌을 놓은 위치를 상대방에게 전송
+
+
+        foreach (var p in removed) // 포획하여 제거한 돌의 위치를 상대방에게 전송
+        {
+            SendRemove(p.x, p.y);
+        }
 
         return true; //돌 놓기와 통신에 성공하면 턴을 넘김
     }
@@ -231,7 +218,7 @@ public class OmockGame : MonoBehaviour
 
             if (board[ex, ey] == me && board[mx, my] == opponent) //2칸 떨어진 위치에 나의 돌이 있고 한칸 떨어진 곳에 상대방 돌이 있다면 나-상대-나 가 완성
             {
-               
+
                 board[mx, my] = Stone.None; //포획이 확인되었으므로, 가운데 있는 돌의 위치를 돌 없음으로 설정하여 제거
                 removed.Add(new Point(mx, my)); //제거된 돌의 좌표를 removes 리스트에 추가
             }
@@ -239,7 +226,6 @@ public class OmockGame : MonoBehaviour
 
         return removed; //4가지 방향에 대한 검사를 모두 완료한 후, 포획되어 제거된 모든 돌들의 좌표가 담긴 리스트를 반환합니다.
     }
-
     bool CheckFive(int x, int y, Stone me) //5개 연속된 돌이 있는지 검사하여 반환하는 함수
     {
         int[] dx = { 1, 0, 1, 1 }; //(1,0)가로, (0,1)세로
@@ -291,13 +277,12 @@ public class OmockGame : MonoBehaviour
         float cell = (float)size / BOARD_SIZE; //오목판 전체 픽셀을 보드 크기로 나누어 픽셀 크기를 계산
 
         x = (int)((pos.x - px) / cell); // x좌표에서 오목판 시작 여백을 빼서 내부의 상대적인 x위치를 구함
-        // cell : 이 상대 위치를 한 칸의 픽셀 크기로 나누면, 몇 번째 칸에 해당하는지 소수점이 나옵니다.
+                                        // cell : 이 상대 위치를 한 칸의 픽셀 크기로 나누면, 몇 번째 칸에 해당하는지 소수점이 나옵니다.
         y = (int)((invY - py) / cell); // 변환된 $Y$ 좌표(invY)에 대해서도 동일한 계산을 수행하여 최종 인덱스를 얻습니다.
 
         if (!InBoard(x, y)) return false; //유효 범위를 벗어났는지 한 번 더 검사
         return true; //검사를 통과하고 올바르게 설정되었다면 성공적으로 변환
     }
-
     void SendPlace(int x, int y) //상대방에게 돌 놓기 정보를 전송
     {
         byte[] data = new byte[3];
@@ -318,29 +303,9 @@ public class OmockGame : MonoBehaviour
         Debug.Log("보냄 remove: " + x + "," + y);
     }
 
-   
     void UpdateEnd()
     {
-        if(winPanel != null)
-        {
-            winPanel.SetActive(true);
-        }
-        if(stoneWinner == stoneI)
-        {
-            winnerText.text = "YOU WIN!";
-        }
-        else
-        {
-            winnerText.text = "YOU LOSE...";
-        }
-        Texture tex = (stoneWinner == Stone.White) ? textWhiteUI : textBlackUI;
-        imgStone.texture = tex;
-
-    }
-
-    public void BtnExit()
-    {
-        Application.Quit();
+        // game finished, could add restart or UI here
     }
 
     void OnGUI()
@@ -377,13 +342,13 @@ public class OmockGame : MonoBehaviour
         }
 
         // 승자 표시
-        /*if (state == State.End)
+        if (state == State.End)
         {
             if (stoneWinner == Stone.White)
                 Graphics.DrawTexture(new Rect((boardPixelSize + boardMargin) / 2 - 30, boardPixelSize + boardMargin + 10, 60, 60), textWhite);
             else
                 Graphics.DrawTexture(new Rect((boardPixelSize + boardMargin) / 2 - 30, boardPixelSize + boardMargin + 10, 60, 60), textBlack);
-        }*/
+        }
     }
 
     public void ServerStart()
@@ -416,4 +381,3 @@ public class OmockGame : MonoBehaviour
         Debug.Log("클라이언트 연결 시도: " + targetIp + ":" + port);
     }
 }
-
