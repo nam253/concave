@@ -40,13 +40,13 @@ public class SamMok : MonoBehaviour
     Stone stoneYou; //상대방의 돌 색깔을 저장
     Stone stoneWinner; //승자의 돌 색깔을 저장
 
-     void Start()
+    void Start()
     {
         tcp = GetComponent<Tcp>(); //tcp 타입의 컴포넌트를 찾아 그 인스턴스를 가져와  tcp에 할당
 
         state = State.Start; //게임 준비 상태
 
-        for(int i = 0; i < board.Length; ++i)
+        for (int i = 0; i < board.Length; ++i)
         {
             board[i] = (int)Stone.None; //게임 보드 초기화, 돌이 없는 상태
         }
@@ -73,8 +73,8 @@ public class SamMok : MonoBehaviour
         state = State.Game; //game으로 상태 변경 
         stoneTurn = Stone.White; //흰 돌이 첫턴
 
-        if(tcp.IsServer()) //내가 서버역할이라면
-        { 
+        if (tcp.IsServer()) //내가 서버역할이라면
+        {
             stoneI = Stone.White; //나는 흰색돌
             stoneYou = Stone.Black; //상대방은 검은 돌
         }
@@ -105,7 +105,7 @@ public class SamMok : MonoBehaviour
         }
         stoneWinner = CheckBoard(); //현재 보드 상태를 확인하여 승자가 있는지 검사
 
-        if(stoneWinner != Stone.None) //승자가 있다면 게임 상태를 end로 변경
+        if (stoneWinner != Stone.None) //승자가 있다면 게임 상태를 end로 변경
         {
             state = State.End;
             Debug.Log("승리: " + (int)stoneWinner); //승자 정보를 콘솔에 출력
