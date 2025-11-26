@@ -12,6 +12,10 @@ public class OmockGame : MonoBehaviour
     public Texture textBord;
     public Texture textWhite;
     public Texture textBlack;
+    public GameObject startCanvas;
+    public GameObject endImage;
+    public RawImage winnerStoneImage;
+    public GameObject backgroundImage;
 
     // board size
     const int BOARD_SIZE = 15; // 오목 보드판의 크기를 15x15로 정의
@@ -34,6 +38,9 @@ public class OmockGame : MonoBehaviour
     {
         tcp = GetComponent<Tcp>(); //tcp 컴포넌트를 가져오기
         state = State.Start; // 게임 상태를 start로 초기화
+        endImage.SetActive(false);
+        startCanvas.SetActive(true);
+        backgroundImage.SetActive(false);
 
         for (int y = 0; y < BOARD_SIZE; ++y) // 모든 칸을 돌 없음으로 초기화
             for (int x = 0; x < BOARD_SIZE; ++x)
@@ -184,6 +191,15 @@ public class OmockGame : MonoBehaviour
 
         var removed = CaptureStones(x, y, stoneI); // 포획 규칙을 검사하여 제거된 돌의 목록을 얻는다.
 
+        if (removed.Count > 0)
+        {
+            Debug.Log(">>> 포획 성공! 제거된 돌 개수: " + removed.Count);
+            foreach (var p in removed)
+            {
+                Debug.Log("제거된 돌 좌표: " + p.x + ", " + p.y);
+            }
+        }
+
 
         SendPlace(x, y); //내가 돌을 놓은 위치를 상대방에게 전송
 
@@ -209,18 +225,24 @@ public class OmockGame : MonoBehaviour
 
         for (int dir = 0; dir < 4; dir++) //4가지 방향 각각에 대해 포획이 발생했는지 검사
         {
-            int mx = x + dx[dir]; //해당 방향으로 1칸 떨어진 위치의 좌표를 계산(여기에 상대방 돌이 있어야함)
-            int my = y + dy[dir];
-            int ex = x + dx[dir] * 2; //해당 방향으로 2칸 떨어진 위치의 좌표를 계산(여기에 나의 돌이 있어야 포획이 성립)
-            int ey = y + dy[dir] * 2;
-
-            if (!InBoard(mx, my) || !InBoard(ex, ey)) continue; //계산된 중간 위치나 끝 위치 중 하나라도 오목판 범위 밖이라면 포획이 불가능, 방향 검사를 건너뛰고 다음 방향으로
-
-            if (board[ex, ey] == me && board[mx, my] == opponent) //2칸 떨어진 위치에 나의 돌이 있고 한칸 떨어진 곳에 상대방 돌이 있다면 나-상대-나 가 완성
+            for (int i = -1; i <= 1; i += 2)
             {
+                int d_x = dx[dir]*i;
+                int d_y = dy[dir]*i;
 
-                board[mx, my] = Stone.None; //포획이 확인되었으므로, 가운데 있는 돌의 위치를 돌 없음으로 설정하여 제거
-                removed.Add(new Point(mx, my)); //제거된 돌의 좌표를 removes 리스트에 추가
+                int mx = x + d_x; //해당 방향으로 1칸 떨어진 위치의 좌표를 계산(여기에 상대방 돌이 있어야함)
+                int my = y + d_y;
+                int ex = x + d_x * 2; //해당 방향으로 2칸 떨어진 위치의 좌표를 계산(여기에 나의 돌이 있어야 포획이 성립)
+                int ey = y + d_y * 2;
+
+                if (!InBoard(mx, my) || !InBoard(ex, ey)) continue; //계산된 중간 위치나 끝 위치 중 하나라도 오목판 범위 밖이라면 포획이 불가능, 방향 검사를 건너뛰고 다음 방향으로
+
+                if (board[ex, ey] == me && board[mx, my] == opponent) //2칸 떨어진 위치에 나의 돌이 있고 한칸 떨어진 곳에 상대방 돌이 있다면 나-상대-나 가 완성
+                {
+
+                    board[mx, my] = Stone.None; //포획이 확인되었으므로, 가운데 있는 돌의 위치를 돌 없음으로 설정하여 제거
+                    removed.Add(new Point(mx, my)); //제거된 돌의 좌표를 removes 리스트에 추가
+                }
             }
         }
 
@@ -305,13 +327,34 @@ public class OmockGame : MonoBehaviour
 
     void UpdateEnd()
     {
-        // game finished, could add restart or UI here
+        if (endImage.activeSelf) return; //이미 승자 돌 이미지가 설정되어 있다면 다시 설정할 필요 없음
+        backgroundImage.SetActive(false);
+        endImage.SetActive(true);
+
+
+        if(winnerStoneImage != null)
+        {
+            if(stoneWinner == Stone.White)
+            {
+                winnerStoneImage.texture = textWhite;
+            }
+            else if(stoneWinner == Stone.Black)
+            {
+                winnerStoneImage.texture = textBlack;
+            }
+        }
+
     }
 
     void OnGUI()
     {
         if (!Event.current.type.Equals(EventType.Repaint)) //호출된 이벤트의 유형을 확인하고 화면을 다시 그려야 할 때 발생하는 이벤트
             return;
+
+        if(state == State.Start || state == State.End) //start 상태가 아닐 때만 보드와 돌을 그리도록
+        {
+            return; //시작 상태일 때는 보드판 그리기 건너 뛰기
+        }
 
         // 텍스터 이미지를 그리는 함수, 시작 위치, 크기, 배경 이미지
         Graphics.DrawTexture(new Rect(boardMargin, boardMargin, boardPixelSize, boardPixelSize), textBord);
@@ -341,14 +384,11 @@ public class OmockGame : MonoBehaviour
                 Graphics.DrawTexture(new Rect(boardPixelSize + boardMargin - 60, boardPixelSize + boardMargin + 10, 60, 60), textBlack);
         }
 
-        // 승자 표시
-        if (state == State.End)
-        {
-            if (stoneWinner == Stone.White)
-                Graphics.DrawTexture(new Rect((boardPixelSize + boardMargin) / 2 - 30, boardPixelSize + boardMargin + 10, 60, 60), textWhite);
-            else
-                Graphics.DrawTexture(new Rect((boardPixelSize + boardMargin) / 2 - 30, boardPixelSize + boardMargin + 10, 60, 60), textBlack);
-        }
+    }
+
+    public void ExiteBtn()
+    {
+        Application.Quit();
     }
 
     public void ServerStart()
@@ -362,6 +402,8 @@ public class OmockGame : MonoBehaviour
 
         tcp.StartServer(port, backlog);
         Debug.Log("서버 시작 요청: 포트 " + port);
+        startCanvas.SetActive(false);
+        backgroundImage.SetActive(true);
     }
 
     public void ClientStart()
@@ -379,5 +421,7 @@ public class OmockGame : MonoBehaviour
         int port = 10000;
         tcp.Connect(targetIp, port);
         Debug.Log("클라이언트 연결 시도: " + targetIp + ":" + port);
+        startCanvas.SetActive(false) ;
+        backgroundImage.SetActive(true);
     }
 }
